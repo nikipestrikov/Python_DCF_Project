@@ -10,7 +10,7 @@ def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, gree
         after_road_deduction = plot_size - road_deduction
         green_deduction = green_area_formula(after_road_deduction)
         net_area = after_road_deduction - green_deduction
-        return net_area, road_deduction, green_deduction
+        return round(net_area), round(road_deduction), round(green_deduction)
 
 
 # Green area deduction based on plot size
@@ -74,13 +74,13 @@ def calculate_totals(plots):
     residential_buildable_area = (residential_area * residential_density_avg) / 100
 
     return {
-        "total_net_area": total_net_area,
-        "total_road_deduction": total_road_deduction,
-        "total_green_deduction": total_green_deduction,
-        "commercial_avg_density": round(commercial_density_avg, 2),
-        "residential_avg_density": round(residential_density_avg, 2),
-        "commercial_buildable_area": round(commercial_buildable_area, 2),
-        "residential_buildable_area": round(residential_buildable_area, 2)
+        "total_net_area": round(total_net_area),
+        "total_road_deduction": round(total_road_deduction),
+        "total_green_deduction": round(total_green_deduction),
+        "commercial_avg_density": round(commercial_density_avg),
+        "residential_avg_density": round(residential_density_avg),
+        "commercial_buildable_area": round(commercial_buildable_area),
+        "residential_buildable_area": round(residential_buildable_area)
     }
 
 
