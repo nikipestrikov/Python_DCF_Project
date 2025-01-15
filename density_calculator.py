@@ -1,6 +1,5 @@
 import streamlit as st
 
-
 # Function to calculate net land area based on plot type
 def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, green_area_formula):
     if is_parceled:
@@ -11,7 +10,6 @@ def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, gree
         green_deduction = green_area_formula(after_road_deduction)
         net_area = after_road_deduction - green_deduction
         return round(net_area), round(road_deduction), round(green_deduction)
-
 
 # Green area deduction based on plot size
 def green_area_formula(area):
@@ -28,9 +26,8 @@ def green_area_formula(area):
     else:
         return area * 0.18
 
-
 # Function to calculate total area and weighted densities
-def calculate_totals(plots):
+def calculate_totals(plots, apply_efficiency_incentive):
     total_net_area = 0
     total_road_deduction = 0
     total_green_deduction = 0
@@ -50,11 +47,6 @@ def calculate_totals(plots):
         total_road_deduction += road_deduction
         total_green_deduction += green_deduction
 
-        zone_percentage_sum = sum(zone["percentage"] for zone in plot["zones"])
-        if zone_percentage_sum > 100:
-            st.warning(f"Zone percentages for {plot['serial_number']} exceed 100%. Please adjust.")
-            continue
-
         for zone in plot["zones"]:
             zone_area = net_plot_size * (zone["percentage"] / 100)
             density_factor = zone["density_factor"]
@@ -73,6 +65,12 @@ def calculate_totals(plots):
     commercial_buildable_area = (commercial_area * commercial_density_avg) / 100
     residential_buildable_area = (residential_area * residential_density_avg) / 100
 
+    incentive_area = 0
+    if apply_efficiency_incentive:
+        incentive_area = 0.05 * (commercial_buildable_area + residential_buildable_area)
+
+    total_buildable_area = commercial_buildable_area + residential_buildable_area + incentive_area
+
     return {
         "total_net_area": round(total_net_area),
         "total_road_deduction": round(total_road_deduction),
@@ -80,9 +78,10 @@ def calculate_totals(plots):
         "commercial_avg_density": round(commercial_density_avg),
         "residential_avg_density": round(residential_density_avg),
         "commercial_buildable_area": round(commercial_buildable_area),
-        "residential_buildable_area": round(residential_buildable_area)
+        "residential_buildable_area": round(residential_buildable_area),
+        "incentive_area": round(incentive_area),
+        "total_buildable_area": round(total_buildable_area)
     }
-
 
 # Streamlit UI
 st.title("Real Estate Density Calculator")
@@ -90,56 +89,51 @@ st.title("Real Estate Density Calculator")
 st.sidebar.header("Plot Configuration")
 num_plots = st.sidebar.number_input("Number of Plots", min_value=1, max_value=10, value=1, step=1)
 
+apply_efficiency_incentive = st.sidebar.checkbox("Apply 5% Efficiency Incentive")
+price_toggle = st.sidebar.radio("Specify Price For", ["Each Plot", "Total Project"])
+
+total_price = 0
 plots = []
 
 for i in range(num_plots):
     st.sidebar.subheader(f"Plot {i + 1}")
     serial_number = st.sidebar.text_input(f"Plot {i + 1} Serial Number", value=f"Plot-{i + 1}")
-    plot_size = st.sidebar.number_input(f"Plot {i + 1} Size (m²)", min_value=0, value=1000, step=1)
+    plot_size = st.sidebar.number_input(f"Plot {i + 1} Size (m²)", min_value=0, value=1000, step=1, format="%d")
     is_parceled = st.sidebar.checkbox(f"Is Plot {i + 1} Parceled?", value=True)
     road_deduction_percent = 0
 
     if not is_parceled:
-        road_deduction_percent = st.sidebar.slider(f"Plot {i + 1} Road Deduction (%)", min_value=0, max_value=50,
-                                                   value=10, step=1)
+        road_deduction_percent = st.sidebar.slider(f"Plot {i + 1} Road Deduction (%)", min_value=0, max_value=50, value=10, step=1)
+
+    plot_price = 0
+    if price_toggle == "Each Plot":
+        plot_price = st.sidebar.number_input(f"Price for Plot {i + 1}", min_value=0, step=1, format="%d")
+        total_price += plot_price
 
     num_zones = st.sidebar.number_input(f"Number of Zones in Plot {i + 1}", min_value=1, max_value=3, value=1, step=1)
-
     zones = []
     remaining_percentage = 100
 
     for j in range(int(num_zones)):
-        st.sidebar.markdown(f"**Zone {j + 1}**")
-        max_percentage = remaining_percentage if j < num_zones - 1 else remaining_percentage
-        percentage = st.sidebar.slider(f"Zone {j + 1} % of Plot {i + 1}", min_value=0, max_value=max_percentage,
-                                       value=max_percentage, step=1)
+        percentage = st.sidebar.slider(f"Zone {j + 1} %", min_value=0, max_value=remaining_percentage, value=remaining_percentage, step=1)
         remaining_percentage -= percentage
+        density_factor = st.sidebar.number_input(f"Zone {j + 1} Density Factor (%)", min_value=0, value=50, step=1)
+        density_type = st.sidebar.selectbox(f"Zone {j + 1} Type", ["Residential", "Commercial"])
+        zones.append({"percentage": percentage, "density_factor": density_factor, "density_type": density_type})
 
-        density_factor = st.sidebar.number_input(f"Zone {j + 1} Density Factor (%) in Plot {i + 1}", min_value=0,
-                                                 value=50, step=1)
-        density_type = st.sidebar.selectbox(f"Zone {j + 1} Type in Plot {i + 1}", ["Residential", "Commercial"])
+    plots.append({"serial_number": serial_number, "plot_size": plot_size, "is_parceled": is_parceled, "road_deduction_percent": road_deduction_percent, "zones": zones})
 
-        zones.append({
-            "percentage": percentage,
-            "density_factor": density_factor,
-            "density_type": density_type
-        })
-
-    plots.append({
-        "serial_number": serial_number,
-        "plot_size": plot_size,
-        "is_parceled": is_parceled,
-        "road_deduction_percent": road_deduction_percent,
-        "zones": zones
-    })
+if price_toggle == "Total Project":
+    total_price = st.sidebar.number_input("Total Project Price", min_value=0, step=1, format="%d")
 
 if st.button("Calculate"):
-    results = calculate_totals(plots)
+    results = calculate_totals(plots, apply_efficiency_incentive)
+    price_per_m2 = total_price / results['total_buildable_area'] if results['total_buildable_area'] else 0
+    st.subheader(f"**Price per Buildable m²:** {round(price_per_m2)}")
     st.subheader("Calculation Results")
-    st.write(f"**Total Net Land Area:** {results['total_net_area']} m²")
-    st.write(f"**Total Road Deduction:** {results['total_road_deduction']} m²")
-    st.write(f"**Total Public Green Deduction:** {results['total_green_deduction']} m²")
-    st.write(f"**Weighted Commercial Density:** {results['commercial_avg_density']} %")
-    st.write(f"**Weighted Residential Density:** {results['residential_avg_density']} %")
+    st.write(f"**Total Buildable Area:** {results['total_buildable_area']} m²")
+    st.write(f"**Efficiency Incentive Area:** {results['incentive_area']} m²")
     st.write(f"**Commercial Buildable Area:** {results['commercial_buildable_area']} m²")
     st.write(f"**Residential Buildable Area:** {results['residential_buildable_area']} m²")
+    st.write(f"**Road Deduction Area:** {results['total_road_deduction']} m²")
+    st.write(f"**Green Deduction Area:** {results['total_green_deduction']} m²")
