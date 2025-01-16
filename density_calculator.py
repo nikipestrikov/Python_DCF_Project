@@ -97,28 +97,28 @@ plots = []
 
 for i in range(num_plots):
     st.sidebar.subheader(f"Plot {i + 1}")
-    serial_number = st.sidebar.text_input(f"Plot {i + 1} Serial Number", value=f"Plot-{i + 1}")
-    plot_size = st.sidebar.number_input(f"Plot {i + 1} Size (m²)", min_value=0, value=1000, step=1, format="%d")
-    is_parceled = st.sidebar.checkbox(f"Is Plot {i + 1} Parceled?", value=True)
+    serial_number = st.sidebar.text_input(f"Plot {i + 1} Serial Number", value=f"Plot-{i + 1}", key=f"serial_{i}")
+    plot_size = st.sidebar.number_input(f"Plot {i + 1} Size (m²)", min_value=0, value=1000, step=1, format="%d", key=f"plot_size_{i}")
+    is_parceled = st.sidebar.checkbox(f"Is Plot {i + 1} Parceled?", value=True, key=f"parceled_{i}")
     road_deduction_percent = 0
 
     if not is_parceled:
-        road_deduction_percent = st.sidebar.slider(f"Plot {i + 1} Road Deduction (%)", min_value=0, max_value=50, value=10, step=1)
+        road_deduction_percent = st.sidebar.slider(f"Plot {i + 1} Road Deduction (%)", min_value=0, max_value=50, value=10, step=1, key=f"road_{i}")
 
     plot_price = 0
     if price_toggle == "Each Plot":
-        plot_price = st.sidebar.number_input(f"Price for Plot {i + 1}", min_value=0, step=1, format="%d")
+        plot_price = st.sidebar.number_input(f"Price for Plot {i + 1}", min_value=0, step=1, format="%d", key=f"price_{i}")
         total_price += plot_price
 
-    num_zones = st.sidebar.number_input(f"Number of Zones in Plot {i + 1}", min_value=1, max_value=3, value=1, step=1)
+    num_zones = st.sidebar.number_input(f"Number of Zones in Plot {i + 1}", min_value=1, max_value=3, value=1, step=1, key=f"zones_{i}")
     zones = []
     remaining_percentage = 100
 
     for j in range(int(num_zones)):
-        percentage = st.sidebar.slider(f"Zone {j + 1} %", min_value=0, max_value=remaining_percentage, value=remaining_percentage, step=1)
+        percentage = st.sidebar.slider(f"Zone {j + 1} %", min_value=0, max_value=remaining_percentage, value=remaining_percentage, step=1, key=f"zone_{i}_{j}")
         remaining_percentage -= percentage
-        density_factor = st.sidebar.number_input(f"Zone {j + 1} Density Factor (%)", min_value=0, value=50, step=1)
-        density_type = st.sidebar.selectbox(f"Zone {j + 1} Type", ["Residential", "Commercial"])
+        density_factor = st.sidebar.number_input(f"Zone {j + 1} Density Factor (%)", min_value=0, value=50, step=1, key=f"density_{i}_{j}")
+        density_type = st.sidebar.selectbox(f"Zone {j + 1} Type", ["Residential", "Commercial"], key=f"type_{i}_{j}")
         zones.append({"percentage": percentage, "density_factor": density_factor, "density_type": density_type})
 
     plots.append({"serial_number": serial_number, "plot_size": plot_size, "is_parceled": is_parceled, "road_deduction_percent": road_deduction_percent, "zones": zones})
