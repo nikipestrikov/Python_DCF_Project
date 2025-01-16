@@ -95,41 +95,39 @@ price_toggle = st.sidebar.radio("Specify Price For", ["Each Plot", "Total Projec
 total_price = 0
 plots = []
 
+if price_toggle == "Total Project":
+    total_price = st.number_input("Total Project Price (€)", min_value=0, step=1, format="%d")
+
 for i in range(num_plots):
-    st.sidebar.subheader(f"Plot {i + 1}")
-    serial_number = st.sidebar.text_input(f"Plot {i + 1} Serial Number", value=f"Plot-{i + 1}", key=f"serial_{i}")
-    plot_size = st.sidebar.number_input(f"Plot {i + 1} Size (m²)", min_value=0, value=1000, step=1, format="%d", key=f"plot_size_{i}")
-    is_parceled = st.sidebar.checkbox(f"Is Plot {i + 1} Parceled?", value=True, key=f"parceled_{i}")
-    road_deduction_percent = 0
+    with st.sidebar.expander(f"Plot {i + 1} Configuration", expanded=False):
+        serial_number = st.text_input(f"Plot {i + 1} Serial Number", value=f"Plot-{i + 1}", key=f"serial_{i}")
+        plot_size = st.number_input(f"Plot {i + 1} Size (m²)", min_value=0, value=1000, step=1, format="%d", key=f"plot_size_{i}")
+        is_parceled = st.checkbox(f"Is Plot {i + 1} Parceled?", value=True, key=f"parceled_{i}")
+        road_deduction_percent = 0
 
-    if not is_parceled:
-        road_deduction_percent = st.sidebar.slider(f"Plot {i + 1} Road Deduction (%)", min_value=0, max_value=50, value=10, step=1, key=f"road_{i}")
+        if not is_parceled:
+            road_deduction_percent = st.slider(f"Plot {i + 1} Road Deduction (%)", min_value=0, max_value=50, value=10, step=1, key=f"road_{i}")
 
-    plot_price = 0
-    if price_toggle == "Each Plot":
-        plot_price = st.sidebar.number_input(f"Price for Plot {i + 1}", min_value=0, step=1, format="%d", key=f"price_{i}")
+        num_zones = st.number_input(f"Number of Zones", min_value=1, max_value=3, value=1, step=1, key=f"zones_{i}")
+        zones = []
+        remaining_percentage = 100
+
+        for j in range(int(num_zones)):
+            percentage = st.slider(f"Zone {j + 1} %", min_value=0, max_value=remaining_percentage, value=remaining_percentage, step=1, key=f"zone_{i}_{j}")
+            remaining_percentage -= percentage
+            density_factor = st.number_input(f"Zone {j + 1} Density Factor (%)", min_value=0, value=50, step=1, key=f"density_{i}_{j}")
+            density_type = st.selectbox(f"Zone {j + 1} Type", ["Residential", "Commercial"], key=f"type_{i}_{j}")
+            zones.append({"percentage": percentage, "density_factor": density_factor, "density_type": density_type})
+
+        plot_price = st.number_input(f"Price for Plot {i + 1}", min_value=0, step=1, format="%d", key=f"price_{i}") if price_toggle == "Each Plot" else 0
         total_price += plot_price
 
-    num_zones = st.sidebar.number_input(f"Number of Zones in Plot {i + 1}", min_value=1, max_value=3, value=1, step=1, key=f"zones_{i}")
-    zones = []
-    remaining_percentage = 100
-
-    for j in range(int(num_zones)):
-        percentage = st.sidebar.slider(f"Zone {j + 1} %", min_value=0, max_value=remaining_percentage, value=remaining_percentage, step=1, key=f"zone_{i}_{j}")
-        remaining_percentage -= percentage
-        density_factor = st.sidebar.number_input(f"Zone {j + 1} Density Factor (%)", min_value=0, value=50, step=1, key=f"density_{i}_{j}")
-        density_type = st.sidebar.selectbox(f"Zone {j + 1} Type", ["Residential", "Commercial"], key=f"type_{i}_{j}")
-        zones.append({"percentage": percentage, "density_factor": density_factor, "density_type": density_type})
-
-    plots.append({"serial_number": serial_number, "plot_size": plot_size, "is_parceled": is_parceled, "road_deduction_percent": road_deduction_percent, "zones": zones})
-
-if price_toggle == "Total Project":
-    total_price = st.sidebar.number_input("Total Project Price", min_value=0, step=1, format="%d")
+        plots.append({"serial_number": serial_number, "plot_size": plot_size, "is_parceled": is_parceled, "road_deduction_percent": road_deduction_percent, "zones": zones})
 
 if st.button("Calculate"):
     results = calculate_totals(plots, apply_efficiency_incentive)
     price_per_m2 = total_price / results['total_buildable_area'] if results['total_buildable_area'] else 0
-    st.subheader(f"**Price per Buildable m²:** {round(price_per_m2)}")
+    st.success(f"**Price per Buildable m²:** {round(price_per_m2):,} €")
     st.subheader("Calculation Results")
     st.write(f"**Total Buildable Area:** {results['total_buildable_area']} m²")
     st.write(f"**Efficiency Incentive Area:** {results['incentive_area']} m²")
