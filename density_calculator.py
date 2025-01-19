@@ -1,33 +1,32 @@
 import streamlit as st
 
 # Function to calculate net land area based on plot type
-def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, green_area_formula):
+def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, green_deduction):
     if is_parceled:
-        return plot_size, 0, 0
+        return plot_size, 0, green_deduction
     else:
         road_deduction = plot_size * (road_deduction_percent / 100)
-        after_road_deduction = plot_size - road_deduction
-        green_deduction = green_area_formula(after_road_deduction)
-        net_area = after_road_deduction - green_deduction
+        net_area = plot_size - road_deduction - green_deduction
         return round(net_area), round(road_deduction), round(green_deduction)
 
-# Green area deduction based on plot size
-def green_area_formula(area):
-    if area < 800:
+# Green area deduction based on total combined plot size
+def green_area_formula(total_area):
+    if total_area < 800:
         return 0
-    elif 800 <= area < 1500:
-        return area * 0.05
-    elif 1500 <= area < 2500:
-        return area * 0.10
-    elif 2500 <= area < 10000:
-        return area * 0.15
-    elif 10000 <= area < 50000:
-        return area * 0.17
+    elif 800 <= total_area < 1500:
+        return total_area * 0.05
+    elif 1500 <= total_area < 2500:
+        return total_area * 0.10
+    elif 2500 <= total_area < 10000:
+        return total_area * 0.15
+    elif 10000 <= total_area < 50000:
+        return total_area * 0.17
     else:
-        return area * 0.18
+        return total_area * 0.18
 
-# Function to calculate total area and weighted densities
-def calculate_totals(plots, apply_efficiency_incentive):
+# Function to calculate totals and handle green area allocation
+def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations):
+    total_plot_size = sum(plot["plot_size"] for plot in plots)
     total_net_area = 0
     total_road_deduction = 0
     total_green_deduction = 0
@@ -36,17 +35,36 @@ def calculate_totals(plots, apply_efficiency_incentive):
     commercial_density_sum = 0
     residential_density_sum = 0
 
+    # Calculate total green area deduction
+    total_green_area = green_area_formula(total_plot_size)
+
+    # Allocate green area to each plot
+    if green_allocation_method == "Proportional":
+        for plot in plots:
+            plot["allocated_green"] = min(total_green_area * (plot["plot_size"] / total_plot_size), plot["plot_size"])
+    elif green_allocation_method == "Custom":
+        total_custom_allocation = sum(custom_green_allocations)
+        for i, plot in enumerate(plots):
+            plot["allocated_green"] = min(total_green_area * (custom_green_allocations[i] / total_custom_allocation), plot["plot_size"])
+
+    # Calculate net areas and densities
     for plot in plots:
+        green_deduction = plot.get("allocated_green", 0)
         net_plot_size, road_deduction, green_deduction = calculate_net_land_area(
             plot["plot_size"],
             plot["is_parceled"],
             plot["road_deduction_percent"],
-            green_area_formula
+            green_deduction
         )
+        plot["net_plot_size"] = net_plot_size
+        plot["road_deduction"] = road_deduction
+        plot["green_deduction"] = green_deduction
+
         total_net_area += net_plot_size
         total_road_deduction += road_deduction
         total_green_deduction += green_deduction
 
+        plot["zone_buildable_areas"] = []
         for zone in plot["zones"]:
             zone_area = net_plot_size * (zone["percentage"] / 100)
             density_factor = zone["density_factor"]
@@ -58,6 +76,9 @@ def calculate_totals(plots, apply_efficiency_incentive):
             elif density_type == "residential":
                 residential_area += zone_area
                 residential_density_sum += zone_area * density_factor
+
+            buildable_area = (zone_area * density_factor) / 100
+            plot["zone_buildable_areas"].append(round(buildable_area))
 
     commercial_density_avg = (commercial_density_sum / commercial_area) if commercial_area else 0
     residential_density_avg = (residential_density_sum / residential_area) if residential_area else 0
@@ -80,7 +101,8 @@ def calculate_totals(plots, apply_efficiency_incentive):
         "commercial_buildable_area": round(commercial_buildable_area),
         "residential_buildable_area": round(residential_buildable_area),
         "incentive_area": round(incentive_area),
-        "total_buildable_area": round(total_buildable_area)
+        "total_buildable_area": round(total_buildable_area),
+        "plots": plots
     }
 
 # Streamlit UI
@@ -91,6 +113,9 @@ num_plots = st.sidebar.number_input("Number of Plots", min_value=1, max_value=10
 
 apply_efficiency_incentive = st.sidebar.checkbox("Apply 5% Efficiency Incentive")
 price_toggle = st.sidebar.radio("Specify Price For", ["Each Plot", "Total Project"])
+
+green_allocation_method = st.sidebar.radio("Public Green Allocation Method", ["Proportional", "Custom"])
+custom_green_allocations = []
 
 total_price = 0
 plots = []
@@ -124,16 +149,65 @@ for i in range(num_plots):
 
         plots.append({"serial_number": serial_number, "plot_size": plot_size, "is_parceled": is_parceled, "road_deduction_percent": road_deduction_percent, "zones": zones})
 
+if green_allocation_method == "Custom":
+    st.sidebar.header("Custom Green Area Allocation")
+    allocated_sum = 0
+
+    for i in range(num_plots):
+        max_allocation = 100 - allocated_sum
+        max_allocation = min(max_allocation, int(plots[i]["plot_size"] / green_area_formula(sum(p["plot_size"] for p in plots)) * 100))
+        allocation = st.sidebar.slider(
+            f"Green Allocation for Plot {i + 1} (%)",
+            min_value=0,
+            max_value=max_allocation,
+            value=min(100 // num_plots, max_allocation),
+            step=1,
+            key=f"custom_green_{i}"
+        )
+        allocated_sum += allocation
+        custom_green_allocations.append(allocation)
+
 if st.button("Calculate"):
-    results = calculate_totals(plots, apply_efficiency_incentive)
+    results = calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations)
     price_per_m2 = total_price / results['total_buildable_area'] if results['total_buildable_area'] else 0
-    st.success(f"**Price per Buildable m²:** {round(price_per_m2):,} €")
-    st.subheader("Total Buildable Area")
-    st.write(f"**Total Buildable Area:** {results['total_buildable_area']} m²")
-    st.subheader("Deductions")
-    st.write(f"**Road Deduction Area:** {results['total_road_deduction']} m²")
-    st.write(f"**Green Deduction Area:** {results['total_green_deduction']} m²")
-    st.subheader("Buildable Area Breakdown")
-    st.write(f"**Efficiency Incentive Area:** {results['incentive_area']} m²")
-    st.write(f"**Commercial Buildable Area:** {results['commercial_buildable_area']} m²")
-    st.write(f"**Residential Buildable Area:** {results['residential_buildable_area']} m²")
+
+    # Highlighted Statistics
+    st.markdown(
+        f"<div style='background-color:#d4edda;padding:10px;border-radius:5px;margin-bottom:10px;'>" +
+        f"<b>Price per Buildable Area:</b> €{price_per_m2:,.0f}/m²</div>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"<div style='background-color:#fff3cd;padding:10px;border-radius:5px;margin-bottom:10px;'>" +
+        f"<b>Total Buildable Area:</b> {results['total_buildable_area']:,} m² " +
+        f"<details><summary>Click to expand</summary>" +
+        f"Residential: {results['residential_buildable_area']:,} m²<br>" +
+        f"Commercial: {results['commercial_buildable_area']:,} m²" +
+        f"</details></div>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"<div style='background-color:#f8d7da;padding:10px;border-radius:5px;margin-bottom:10px;'>" +
+        f"<b>Total Deductions:</b> {results['total_road_deduction'] + results['total_green_deduction']:,} m² " +
+        f"<details><summary>Click to expand</summary>" +
+        f"Road: {results['total_road_deduction']:,} m²<br>" +
+        f"Public Green: {results['total_green_deduction']:,} m²" +
+        f"</details></div>",
+        unsafe_allow_html=True
+    )
+
+    # Detailed Breakdown for Each Plot
+    st.subheader("Detailed Calculation Breakdown")
+    for i, plot in enumerate(results['plots']):
+        with st.expander(f"Plot {i + 1} ({plot['serial_number']})"):
+            st.markdown(f"**Plot Area:** {plot['plot_size']:,} m²")
+            st.markdown(f"**Road Deduction:** {plot['road_deduction']:,} m²")
+            st.markdown(f"**Public Green Allocated:** {plot['green_deduction']:,} m²")
+            st.markdown(f"**Net Land Area:** {plot['net_plot_size']:,} m²")
+
+            for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
+                zone = plot["zones"][j]
+                st.markdown(
+                    f"**Zone {j + 1}:** {zone['percentage']}% | Density Factor: {zone['density_factor']}% | " +
+                    f"Type: {zone['density_type']} | Buildable Area: {zone_buildable_area:,} m²"
+                )
