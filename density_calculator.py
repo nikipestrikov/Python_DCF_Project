@@ -226,8 +226,25 @@ def generate_excel_report(results, total_price, price_per_m2):
     return output
 
 # Function to generate a detailed PDF report
+class PDF(FPDF):
+    def output(self, name=None, dest=''):
+        if name is None:
+            # If no file name is given, write to the provided BytesIO object
+            return self.output_to_bytes()
+        else:
+            # Default behavior if a filename is provided
+            super().output(name, dest)
+
+    def output_to_bytes(self):
+        # Output PDF to a BytesIO object
+        pdf_output = BytesIO()
+        super().output(pdf_output)
+        pdf_output.seek(0)  # Reset the pointer to the start of the BytesIO stream
+        return pdf_output
+
+
 def generate_pdf_report(results, total_price, price_per_m2):
-    pdf = FPDF()
+    pdf = PDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -288,10 +305,8 @@ def generate_pdf_report(results, total_price, price_per_m2):
                 ln=True,
             )
 
-    # Export PDF to BytesIO and reset position to the start of the stream
-    pdf_output = BytesIO()
-    pdf.output(pdf_output)
-    pdf_output.seek(0)  # Ensure that the pointer is at the start for reading
+    # Generate PDF as a BytesIO object
+    pdf_output = pdf.output_to_bytes()
 
     return pdf_output
 
