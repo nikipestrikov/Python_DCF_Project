@@ -288,10 +288,11 @@ def generate_pdf_report(results, total_price, price_per_m2):
                 ln=True,
             )
 
-    # Export PDF to BytesIO
+    # Export PDF to BytesIO and reset position to the start of the stream
     pdf_output = BytesIO()
     pdf.output(pdf_output)
-    pdf_output.seek(0)
+    pdf_output.seek(0)  # Ensure that the pointer is at the start for reading
+
     return pdf_output
 
 if st.button("Calculate"):
