@@ -1,4 +1,7 @@
 import streamlit as st
+import pandas as pd
+from fpdf import FPDF
+from io import BytesIO
 
 # Function to calculate net land area based on plot type
 def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, green_deduction):
@@ -167,6 +170,130 @@ if green_allocation_method == "Custom":
         allocated_sum += allocation
         custom_green_allocations.append(allocation)
 
+#Excel Generate Function
+def generate_excel_report(results, total_price, price_per_m2):
+    output = BytesIO()
+
+    # Create main summary DataFrame
+    summary_data = {
+        "Metric": [
+            "Total Buildable Area (m²)",
+            "Residential Buildable Area (m²)",
+            "Commercial Buildable Area (m²)",
+            "Total Deductions (m²)",
+            "Road Deduction (m²)",
+            "Public Green Deduction (m²)",
+            "Price per Buildable Area (€)",
+        ],
+        "Value": [
+            results['total_buildable_area'],
+            results['residential_buildable_area'],
+            results['commercial_buildable_area'],
+            results['total_road_deduction'] + results['total_green_deduction'],
+            results['total_road_deduction'],
+            results['total_green_deduction'],
+            f"{price_per_m2:,.2f}",
+        ]
+    }
+    summary_df = pd.DataFrame(summary_data)
+
+    # Create detailed plot breakdown
+    plot_details = []
+    for plot in results['plots']:
+        for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
+            zone = plot["zones"][j]
+            plot_details.append({
+                "Plot Serial Number": plot["serial_number"],
+                "Plot Area (m²)": plot["plot_size"],
+                "Road Deduction (m²)": plot["road_deduction"],
+                "Public Green Deduction (m²)": plot["green_deduction"],
+                "Net Land Area (m²)": plot["net_plot_size"],
+                "Zone": f"Zone {j + 1}",
+                "Zone Percentage (%)": zone["percentage"],
+                "Density Factor (%)": zone["density_factor"],
+                "Zone Type": zone["density_type"],
+                "Buildable Area (m²)": zone_buildable_area,
+            })
+
+    plot_df = pd.DataFrame(plot_details)
+
+    # Write both DataFrames to Excel
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        summary_df.to_excel(writer, index=False, sheet_name="Summary")
+        plot_df.to_excel(writer, index=False, sheet_name="Plot Details")
+
+    output.seek(0)
+    return output
+
+# Function to generate a detailed PDF report
+def generate_pdf_report(results, total_price, price_per_m2):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Add Title
+    pdf.set_font("Arial", style="B", size=16)
+    pdf.cell(0, 10, "Real Estate Density Calculation Report", ln=True, align="C")
+    pdf.ln(10)
+
+    # Summary Section
+    pdf.set_font("Arial", style="B", size=14)
+    pdf.cell(0, 10, "Summary", ln=True)
+    pdf.set_font("Arial", size=12)
+
+    summary_data = [
+        f"Total Buildable Area (m²): {results['total_buildable_area']:,}",
+        f"Residential Buildable Area (m²): {results['residential_buildable_area']:,}",
+        f"Commercial Buildable Area (m²): {results['commercial_buildable_area']:,}",
+        f"Total Deductions (m²): {results['total_road_deduction'] + results['total_green_deduction']:,}",
+        f"Road Deduction (m²): {results['total_road_deduction']:,}",
+        f"Public Green Deduction (m²): {results['total_green_deduction']:,}",
+        f"Price per Buildable Area (EURO): {price_per_m2:,.2f}",
+    ]
+    for line in summary_data:
+        pdf.cell(0, 10, line, ln=True)
+
+    pdf.ln(10)
+
+    # Detailed Breakdown for Each Plot
+    pdf.set_font("Arial", style="B", size=14)
+    pdf.cell(0, 10, "Detailed Plot Breakdown", ln=True)
+    pdf.set_font("Arial", size=12)
+
+    for i, plot in enumerate(results['plots']):
+        pdf.ln(5)
+        pdf.set_font("Arial", style="B", size=12)
+        pdf.cell(0, 10, f"Plot {i + 1} ({plot['serial_number']})", ln=True)
+        pdf.set_font("Arial", size=12)
+
+        plot_data = [
+            f"Plot Area (m²): {plot['plot_size']:,}",
+            f"Road Deduction (m²): {plot['road_deduction']:,}",
+            f"Public Green Allocated (m²): {plot['green_deduction']:,}",
+            f"Net Land Area (m²): {plot['net_plot_size']:,}",
+        ]
+        for line in plot_data:
+            pdf.cell(0, 10, line, ln=True)
+
+        for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
+            zone = plot["zones"][j]
+            pdf.cell(
+                0,
+                10,
+                f"Zone {j + 1}: {zone['percentage']}% | "
+                f"Density Factor: {zone['density_factor']}% | "
+                f"Type: {zone['density_type']} | "
+                f"Buildable Area (m²): {zone_buildable_area:,}",
+                ln=True,
+            )
+
+    # Export PDF to BytesIO
+    pdf_output = BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return pdf_output
+
 if st.button("Calculate"):
     results = calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations)
     price_per_m2 = total_price / results['total_buildable_area'] if results['total_buildable_area'] else 0
@@ -196,6 +323,22 @@ if st.button("Calculate"):
         unsafe_allow_html=True
     )
 
+    # Export to Excel functionality
+    excel_data = generate_excel_report(results, total_price, price_per_m2)
+    st.download_button(
+        label="Download Excel Report",
+        data=excel_data,
+        file_name="density_calculation_results.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    # Save to PDF functionality
+    pdf_data = generate_pdf_report(results, total_price, price_per_m2)
+    st.download_button(
+        label="Download PDF Report",
+        data=pdf_data,
+        file_name="density_calculation_results.pdf",
+        mime="application/pdf"
+    )
     # Detailed Breakdown for Each Plot
     st.subheader("Detailed Calculation Breakdown")
     for i, plot in enumerate(results['plots']):
