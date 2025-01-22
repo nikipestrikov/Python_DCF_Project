@@ -323,7 +323,7 @@ if st.button("Calculate"):
         unsafe_allow_html=True
     )
 
-    # Export to Excel functionality
+    # Excel Export
     excel_data = generate_excel_report(results, total_price, price_per_m2)
     st.download_button(
         label="Download Excel Report",
@@ -331,7 +331,8 @@ if st.button("Calculate"):
         file_name="density_calculation_results.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    # Save to PDF functionality
+
+    # PDF Export
     pdf_data = generate_pdf_report(results, total_price, price_per_m2)
     st.download_button(
         label="Download PDF Report",
