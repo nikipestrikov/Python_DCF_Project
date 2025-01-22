@@ -290,7 +290,7 @@ def generate_pdf_report(results, total_price, price_per_m2):
 
     # Export PDF to BytesIO
     pdf_output = BytesIO()
-    pdf.output(pdf_output)
+    pdf.output(name=pdf_output)
     pdf_output.seek(0)
     return pdf_output
 
