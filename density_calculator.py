@@ -230,8 +230,8 @@ class PDF(FPDF):
     def output_to_bytes(self):
         # Create a BytesIO stream for storing the PDF data in memory
         pdf_output = BytesIO()
-        # Call the original output method with the BytesIO stream
-        super().output(pdf_output)
+        # We override the output method to accept a file-like object (like BytesIO)
+        self.output(pdf_output)  # Write the PDF to the BytesIO object
         pdf_output.seek(0)  # Go to the beginning of the BytesIO stream
         return pdf_output.getvalue()  # Return the PDF data as bytes
 
@@ -266,7 +266,7 @@ def generate_pdf_report(results, total_price, price_per_m2):
     pdf.ln(10)
 
     # Detailed Breakdown for Each Plot
-    pdf.set_font("Arial", style="B", size=14)
+    pdf.set_font("Arial", style="B", size="14")
     pdf.cell(0, 10, "Detailed Plot Breakdown", ln=True)
     pdf.set_font("Arial", size=12)
 
