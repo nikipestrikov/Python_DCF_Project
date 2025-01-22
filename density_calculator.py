@@ -266,7 +266,7 @@ def generate_pdf_report(results, total_price, price_per_m2):
     pdf.ln(10)
 
     # Detailed Breakdown for Each Plot
-    pdf.set_font("Arial", style="B", size="14")
+    pdf.set_font("Arial", style="B", size=14)
     pdf.cell(0, 10, "Detailed Plot Breakdown", ln=True)
     pdf.set_font("Arial", size=12)
 
