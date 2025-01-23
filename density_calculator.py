@@ -226,73 +226,68 @@ def generate_excel_report(results, total_price, price_per_m2):
     return output
 
 # Function to generate a detailed PDF report
-def generate_pdf_with_fpdf(results, total_price, price_per_m2):
-    try:
-        # Initialize PDF
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
+def generate_pdf_report(results, total_price, price_per_m2):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
 
-        # Add Title
-        pdf.set_font("Arial", style="B", size=16)
-        pdf.cell(0, 10, "Real Estate Density Calculation Report", ln=True, align="C")
-        pdf.ln(10)
+    # Add Title
+    pdf.set_font("Arial", style="B", size=16)
+    pdf.cell(0, 10, "Real Estate Density Calculation Report", ln=True, align="C")
+    pdf.ln(10)
 
-        # Summary Section
-        pdf.set_font("Arial", style="B", size=14)
-        pdf.cell(0, 10, "Summary", ln=True)
+    # Summary Section
+    pdf.set_font("Arial", style="B", size=14)
+    pdf.cell(0, 10, "Summary", ln=True)
+    pdf.set_font("Arial", size=12)
+
+    summary_data = [
+        f"Total Buildable Area: {results['total_buildable_area']} m²",
+        f"Residential Buildable Area: {results['residential_buildable_area']} m²",
+        f"Commercial Buildable Area: {results['commercial_buildable_area']} m²",
+        f"Total Deductions: {results['total_road_deduction'] + results['total_green_deduction']} m²",
+        f"Price per Buildable Area: {price_per_m2:,.2f} EURO",
+    ]
+    for line in summary_data:
+        pdf.cell(0, 10, line, ln=True)
+
+    pdf.ln(10)
+
+    # Detailed Breakdown
+    pdf.set_font("Arial", style="B", size=14)
+    pdf.cell(0, 10, "Detailed Plot Breakdown", ln=True)
+    pdf.set_font("Arial", size=12)
+
+    for i, plot in enumerate(results['plots']):
+        pdf.ln(5)
+        pdf.set_font("Arial", style="B", size=12)
+        pdf.cell(0, 10, f"Plot {i + 1} ({plot['serial_number']})", ln=True)
         pdf.set_font("Arial", size=12)
 
-        summary_data = [
-            f"Total Buildable Area: {results['total_buildable_area']} m²",
-            f"Residential Buildable Area: {results['residential_buildable_area']} m²",
-            f"Commercial Buildable Area: {results['commercial_buildable_area']} m²",
-            f"Total Deductions: {results['total_road_deduction'] + results['total_green_deduction']} m²",
-            f"Price per Buildable Area: {price_per_m2:,.2f} EURO",  # Replace "€" with "EURO" to avoid font issues
+        plot_details = [
+            f"Plot Area: {plot['plot_size']} m²",
+            f"Road Deduction: {plot['road_deduction']} m²",
+            f"Public Green Allocated: {plot['green_deduction']} m²",
+            f"Net Land Area: {plot['net_plot_size']} m²",
         ]
-        for line in summary_data:
-            pdf.cell(0, 10, line, ln=True)
+        for detail in plot_details:
+            pdf.cell(0, 10, detail, ln=True)
 
-        pdf.ln(10)
+        for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
+            zone = plot["zones"][j]
+            pdf.cell(
+                0,
+                10,
+                f"Zone {j + 1}: {zone['percentage']}% | Density: {zone['density_factor']}% | "
+                f"Type: {zone['density_type']} | Buildable Area: {zone_buildable_area} m²",
+                ln=True,
+            )
 
-        # Detailed Breakdown
-        pdf.set_font("Arial", style="B", size=14)
-        pdf.cell(0, 10, "Detailed Plot Breakdown", ln=True)
-        pdf.set_font("Arial", size=12)
-
-        for i, plot in enumerate(results['plots']):
-            pdf.ln(5)
-            pdf.set_font("Arial", style="B", size=12)
-            pdf.cell(0, 10, f"Plot {i + 1} ({plot['serial_number']})", ln=True)
-            pdf.set_font("Arial", size=12)
-
-            plot_details = [
-                f"Plot Area: {plot['plot_size']} m²",
-                f"Road Deduction: {plot['road_deduction']} m²",
-                f"Public Green Allocated: {plot['green_deduction']} m²",
-                f"Net Land Area: {plot['net_plot_size']} m²",
-            ]
-            for detail in plot_details:
-                pdf.cell(0, 10, detail, ln=True)
-
-            for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
-                zone = plot["zones"][j]
-                pdf.multi_cell(
-                    0,
-                    10,
-                    f"Zone {j + 1}: {zone['percentage']}% | Density: {zone['density_factor']}% | "
-                    f"Type: {zone['density_type']} | Buildable Area: {zone_buildable_area} m²",
-                )
-
-        # Output PDF to BytesIO
-        pdf_output = BytesIO()
-        pdf.output(pdf_output)
-        pdf_output.seek(0)
-        return pdf_output
-
-    except Exception as e:
-        print(f"Error in PDF generation: {e}")
-        return None
+    # Output PDF to BytesIO
+    pdf_output = BytesIO()
+    pdf.output(pdf_output)  # Write directly to BytesIO
+    pdf_output.seek(0)  # Move to the beginning of the BytesIO object
+    return pdf_output
 
 if st.button("Calculate"):
     results = calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations)
@@ -333,19 +328,17 @@ if st.button("Calculate"):
     )
 
     # PDF Export
-    # Generate PDF
-    pdf_data = generate_pdf_with_fpdf(results, total_price, price_per_m2)
+    pdf_data = generate_pdf_report(results, total_price, price_per_m2)
 
-    # Use the returned PDF data in the download button
     if pdf_data:
         st.download_button(
             label="Download PDF Report",
-            data=pdf_data,  # This is the BytesIO object returned
+            data=pdf_data,
             file_name="density_calculation_results.pdf",
             mime="application/pdf"
         )
     else:
-        st.error("PDF generation failed. The data is empty.")
+        st.error("Failed to generate PDF. The data is empty.")
 
     # Detailed Breakdown for Each Plot
     st.subheader("Detailed Calculation Breakdown")
