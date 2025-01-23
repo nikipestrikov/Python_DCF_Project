@@ -226,7 +226,7 @@ def generate_excel_report(results, total_price, price_per_m2):
     return output
 
 # Function to generate a detailed PDF report
-def generate_pdf_report_legacy(results, total_price, price_per_m2):
+def generate_pdf_report(results, total_price, price_per_m2):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
