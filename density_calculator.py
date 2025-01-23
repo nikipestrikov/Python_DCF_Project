@@ -226,7 +226,7 @@ def generate_excel_report(results, total_price, price_per_m2):
     return output
 
 # Function to generate a detailed PDF report
-def generate_pdf_report(results, total_price, price_per_m2):
+def generate_pdf_report_legacy(results, total_price, price_per_m2):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
@@ -283,11 +283,14 @@ def generate_pdf_report(results, total_price, price_per_m2):
                 ln=True,
             )
 
-    # Output PDF to BytesIO
-    pdf_output = BytesIO()
-    pdf.output(pdf_output)  # Write directly to BytesIO
-    pdf_output.seek(0)  # Move to the beginning of the BytesIO object
-    return pdf_output
+    # Save PDF to a temporary file
+    temp_file = "/tmp/report.pdf"
+    pdf.output(temp_file)
+
+    # Read the file into a BytesIO object
+    with open(temp_file, "rb") as f:
+        pdf_data = BytesIO(f.read())
+    return pdf_data
 
 if st.button("Calculate"):
     results = calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations)
