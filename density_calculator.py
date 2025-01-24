@@ -264,12 +264,15 @@ def generate_pdf_report(results, total_price, price_per_m2, project_name):
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    # Add Title
+    # Add Logo
+    logo_path = "logo.png"  # Ensure this is the correct path to your logo
+    pdf.image(logo_path, x=10, y=8, w=30)  # Adjust the position and size as needed
+
+    # Add Title and Project Name
     pdf.set_font("Arial", style="B", size=16)
-    pdf.cell(0, 10, "Density Analysis", ln=True, align="C")
+    pdf.cell(0, 10, "Density Analysis Report", ln=True, align="C")
     pdf.ln(5)
 
-    # Add Project Name
     pdf.set_font("Arial", style="B", size=14)
     pdf.cell(0, 10, f"Project: {project_name}", ln=True, align="C")
     pdf.ln(10)
@@ -280,46 +283,46 @@ def generate_pdf_report(results, total_price, price_per_m2, project_name):
     pdf.set_font("Arial", size=12)
 
     summary_data = [
-        f"Total Buildable Area: {results['total_buildable_area']} m²",
-        f"Residential Buildable Area: {results['residential_buildable_area']} m²",
-        f"Commercial Buildable Area: {results['commercial_buildable_area']} m²",
-        f"Total Deductions: {results['total_road_deduction'] + results['total_green_deduction']} m²",
-        f"Price per Buildable Area: {price_per_m2:,.2f} EURO",
+        f"Total Buildable Area: {round(results['total_buildable_area']):,} m²",
+        f"Residential Buildable Area: {round(results['residential_buildable_area']):,} m²",
+        f"Commercial Buildable Area: {round(results['commercial_buildable_area']):,} m²",
+        f"Total Deductions: {round(results['total_road_deduction'] + results['total_green_deduction']):,} m²",
+        f"Price per Buildable Area: EUR {round(price_per_m2):,}",
     ]
     for line in summary_data:
         pdf.cell(0, 10, line, ln=True)
 
     pdf.ln(10)
 
-    # Detailed Breakdown
+    # Detailed Plot Breakdown in a Table
     pdf.set_font("Arial", style="B", size=14)
     pdf.cell(0, 10, "Detailed Plot Breakdown", ln=True)
-    pdf.set_font("Arial", size=12)
+    pdf.ln(5)
 
-    for i, plot in enumerate(results['plots']):
-        pdf.ln(5)
-        pdf.set_font("Arial", style="B", size=12)
-        pdf.cell(0, 10, f"Plot {i + 1} ({plot['serial_number']})", ln=True)
-        pdf.set_font("Arial", size=12)
+    # Define Table Column Headers with Shrinking Font
+    pdf.set_font("Arial", style="B", size=10)  # Smaller font for headers
+    headers = ["Plot", "Plot Size (m²)", "Road Deduction (m²)", "Green Deduction (m²)", "Net Land Area (m²)"]
+    col_widths = [30, 40, 40, 40, 40]  # Adjust column widths as needed
 
-        plot_details = [
-            f"Plot Area: {plot['plot_size']} m²",
-            f"Road Deduction: {plot['road_deduction']} m²",
-            f"Public Green Allocated: {plot['green_deduction']} m²",
-            f"Net Land Area: {plot['net_plot_size']} m²",
+    for header, width in zip(headers, col_widths):
+        pdf.cell(width, 10, header, border=1, align="C")
+    pdf.ln()
+
+    # Populate Table with Data
+    pdf.set_font("Arial", size=10)  # Match font size to headers
+    for i, plot in enumerate(results["plots"]):
+        row = [
+            f"Plot {i + 1}",
+            f"{round(plot['plot_size']):,}",
+            f"{round(plot['road_deduction']):,}",
+            f"{round(plot['green_deduction']):,}",
+            f"{round(plot['net_plot_size']):,}",
         ]
-        for detail in plot_details:
-            pdf.cell(0, 10, detail, ln=True)
+        for data, width in zip(row, col_widths):
+            pdf.cell(width, 10, data, border=1, align="C")
+        pdf.ln()
 
-        for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
-            zone = plot["zones"][j]
-            pdf.cell(
-                0,
-                10,
-                f"Zone {j + 1}: {zone['percentage']}% | Density: {zone['density_factor']}% | "
-                f"Type: {zone['density_type']} | Buildable Area: {zone_buildable_area} m²",
-                ln=True,
-            )
+    pdf.ln(10)
 
     # Save PDF to a temporary file
     temp_file = "/tmp/report.pdf"
