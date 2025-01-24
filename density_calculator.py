@@ -4,12 +4,21 @@ from fpdf import FPDF
 from io import BytesIO
 
 # Function to calculate net land area based on plot type
-def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, green_deduction):
+def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, green_percentage):
     if is_parceled:
-        return plot_size, 0, green_deduction
+        # If parceled, no road or green deductions apply
+        return plot_size, 0, 0
     else:
+        # Calculate road deduction
         road_deduction = plot_size * (road_deduction_percent / 100)
-        net_area = plot_size - road_deduction - green_deduction
+        area_after_road = plot_size - road_deduction
+
+        # Calculate green deduction on the area remaining after road deduction
+        green_deduction = area_after_road * (green_percentage / 100)
+
+        # Calculate net area
+        net_area = area_after_road - green_deduction
+
         return round(net_area), round(road_deduction), round(green_deduction)
 
 # Green area deduction based on total combined plot size
@@ -17,19 +26,18 @@ def green_area_formula(total_area):
     if total_area < 800:
         return 0
     elif 800 <= total_area < 1500:
-        return total_area * 0.05
+        return 5
     elif 1500 <= total_area < 2500:
-        return total_area * 0.10
+        return 10
     elif 2500 <= total_area < 10000:
-        return total_area * 0.15
+        return 15
     elif 10000 <= total_area < 50000:
-        return total_area * 0.17
+        return 17
     else:
-        return total_area * 0.18
+        return 18
 
 # Function to calculate totals and handle green area allocation
 def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations):
-    total_plot_size = sum(plot["plot_size"] for plot in plots)
     total_net_area = 0
     total_road_deduction = 0
     total_green_deduction = 0
@@ -38,38 +46,38 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
     commercial_density_sum = 0
     residential_density_sum = 0
 
-    # Calculate total green area deduction
-    total_green_area = green_area_formula(total_plot_size)
-
-    # Allocate green area to each plot
-    if green_allocation_method == "Proportional":
-        for plot in plots:
-            plot["allocated_green"] = min(total_green_area * (plot["plot_size"] / total_plot_size), plot["plot_size"])
-    elif green_allocation_method == "Custom":
-        total_custom_allocation = sum(custom_green_allocations)
-        for i, plot in enumerate(plots):
-            plot["allocated_green"] = min(total_green_area * (custom_green_allocations[i] / total_custom_allocation), plot["plot_size"])
-
-    # Calculate net areas and densities
     for plot in plots:
-        green_deduction = plot.get("allocated_green", 0)
-        net_plot_size, road_deduction, green_deduction = calculate_net_land_area(
-            plot["plot_size"],
-            plot["is_parceled"],
-            plot["road_deduction_percent"],
-            green_deduction
-        )
-        plot["net_plot_size"] = net_plot_size
-        plot["road_deduction"] = road_deduction
-        plot["green_deduction"] = green_deduction
+        if plot["is_parceled"]:
+            # For parceled plots, no deductions apply
+            plot["net_plot_size"] = plot["plot_size"]
+            plot["road_deduction"] = 0
+            plot["green_deduction"] = 0
+        else:
+            # Calculate road deduction
+            road_deduction = plot["plot_size"] * (plot["road_deduction_percent"] / 100)
+            area_after_road = plot["plot_size"] - road_deduction
 
-        total_net_area += net_plot_size
-        total_road_deduction += road_deduction
-        total_green_deduction += green_deduction
+            # Recalculate green percentage based on area after road deduction
+            green_percentage = green_area_formula(area_after_road)
+            green_deduction = area_after_road * (green_percentage / 100)
 
+            # Calculate net area
+            net_plot_size = area_after_road - green_deduction
+
+            # Update plot values
+            plot["net_plot_size"] = net_plot_size
+            plot["road_deduction"] = road_deduction
+            plot["green_deduction"] = green_deduction
+
+            # Update totals
+            total_net_area += net_plot_size
+            total_road_deduction += road_deduction
+            total_green_deduction += green_deduction
+
+        # Calculate buildable area by zones
         plot["zone_buildable_areas"] = []
         for zone in plot["zones"]:
-            zone_area = net_plot_size * (zone["percentage"] / 100)
+            zone_area = plot["net_plot_size"] * (zone["percentage"] / 100)
             density_factor = zone["density_factor"]
             density_type = zone["density_type"].lower()
 
@@ -127,12 +135,34 @@ total_price = 0
 plots = []
 
 if price_toggle == "Total Project":
-    total_price = st.number_input("Total Project Price (€)", min_value=0, step=1, format="%d")
+    total_price_input = st.text_input("Total Project Price (€)", value="100,000")
+    try:
+        total_price = int(total_price_input.replace(",", ""))  # Remove commas and convert to integer
+        if total_price < 0:
+            st.error("Total project price must be a positive number.")
+            total_price = 0
+        else:
+            # Re-display the value with commas
+            total_price_input = f"{total_price:,}"
+    except ValueError:
+        st.error("Please enter a valid number for total project price.")
+        total_price = 0
 
 for i in range(num_plots):
     with st.sidebar.expander(f"Plot {i + 1} Configuration", expanded=False):
         serial_number = st.text_input(f"Plot {i + 1} Serial Number", value=f"Plot-{i + 1}", key=f"serial_{i}")
-        plot_size = st.number_input(f"Plot {i + 1} Size (m²)", min_value=0, value=1000, step=1, format="%d", key=f"plot_size_{i}")
+        plot_size_input = st.text_input(f"Plot {i + 1} Size (m²)", value="1,000", key=f"plot_size_{i}")
+        try:
+            plot_size = int(plot_size_input.replace(",", ""))  # Remove commas and convert to integer
+            if plot_size < 0:
+                st.error("Plot size must be a positive number.")
+                plot_size = 0
+            else:
+                # Re-display the value with commas
+                plot_size_input = f"{plot_size:,}"
+        except ValueError:
+            st.error("Please enter a valid number for plot size.")
+            plot_size = 0
         is_parceled = st.checkbox(f"Is Plot {i + 1} Parceled?", value=True, key=f"parceled_{i}")
         road_deduction_percent = 0
 
