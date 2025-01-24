@@ -109,10 +109,13 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
     }
 
 # Streamlit UI
-st.title("Real Estate Density Calculator")
+st.sidebar.image("logo.png", width=75)
+st.markdown("<h1 style='text-align: center;'>Project Density Analysis</h1>", unsafe_allow_html=True)
 
 st.sidebar.header("Plot Configuration")
 num_plots = st.sidebar.number_input("Number of Plots", min_value=1, max_value=10, value=1, step=1)
+
+project_name = st.sidebar.text_input("Project Name", value="My Real Estate Project")
 
 apply_efficiency_incentive = st.sidebar.checkbox("Apply 5% Efficiency Incentive")
 price_toggle = st.sidebar.radio("Specify Price For", ["Each Plot", "Total Project"])
@@ -226,14 +229,19 @@ def generate_excel_report(results, total_price, price_per_m2):
     return output
 
 # Function to generate a detailed PDF report
-def generate_pdf_report(results, total_price, price_per_m2):
+def generate_pdf_report(results, total_price, price_per_m2, project_name):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
     # Add Title
     pdf.set_font("Arial", style="B", size=16)
-    pdf.cell(0, 10, "Real Estate Density Calculation Report", ln=True, align="C")
+    pdf.cell(0, 10, "Density Analysis", ln=True, align="C")
+    pdf.ln(5)
+
+    # Add Project Name
+    pdf.set_font("Arial", style="B", size=14)
+    pdf.cell(0, 10, f"Project: {project_name}", ln=True, align="C")
     pdf.ln(10)
 
     # Summary Section
@@ -292,9 +300,23 @@ def generate_pdf_report(results, total_price, price_per_m2):
         pdf_data = BytesIO(f.read())
     return pdf_data
 
+# Calculate button with session state handling
 if st.button("Calculate"):
+    # Perform calculations
     results = calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations)
     price_per_m2 = total_price / results['total_buildable_area'] if results['total_buildable_area'] else 0
+
+    # Store results in session state
+    st.session_state["results"] = results
+    st.session_state["price_per_m2"] = price_per_m2
+    st.session_state["total_price"] = total_price
+    st.session_state["calculated"] = True  # Set a flag to indicate that calculations have been performed
+
+# Check if calculations exist in session state
+if "calculated" in st.session_state and st.session_state["calculated"]:
+    results = st.session_state["results"]
+    price_per_m2 = st.session_state["price_per_m2"]
+    total_price = st.session_state["total_price"]
 
     # Highlighted Statistics
     st.markdown(
@@ -331,17 +353,16 @@ if st.button("Calculate"):
     )
 
     # PDF Export
-    pdf_data = generate_pdf_report(results, total_price, price_per_m2)
-
-    if pdf_data:
+    try:
+        pdf_data = generate_pdf_report(results, total_price, price_per_m2, project_name)
         st.download_button(
             label="Download PDF Report",
             data=pdf_data,
             file_name="density_calculation_results.pdf",
             mime="application/pdf"
         )
-    else:
-        st.error("Failed to generate PDF. The data is empty.")
+    except Exception as e:
+        st.error(f"Failed to generate PDF: {e}")
 
     # Detailed Breakdown for Each Plot
     st.subheader("Detailed Calculation Breakdown")
