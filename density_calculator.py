@@ -1,7 +1,4 @@
 import streamlit as st
-import pandas as pd
-from fpdf import FPDF
-from io import BytesIO
 
 from Calculations import calculate_net_land_area, green_area_formula, calculate_totals
 from reports import generate_excel_report, generate_pdf_report

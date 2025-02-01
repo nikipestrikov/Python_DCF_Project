@@ -5,7 +5,7 @@ def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, gree
     if is_parceled:
         # If parceled, no road or green deductions apply
         return plot_size, 0, 0
-    else:
+
         # Calculate road deduction
         road_deduction = plot_size * (road_deduction_percent / 100)
         area_after_road = plot_size - road_deduction
@@ -20,18 +20,19 @@ def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, gree
 
 # Green area deduction based on total combined plot size
 def green_area_formula(total_area):
-    if total_area < 800:
-        return 0
-    elif 800 <= total_area < 1500:
-        return 5
-    elif 1500 <= total_area < 2500:
-        return 10
-    elif 2500 <= total_area < 10000:
-        return 15
-    elif 10000 <= total_area < 50000:
-        return 17
-    else:
-        return 18
+    match total_area:
+        case _ if total_area < 800:
+            return 0
+        case _ if 800 <= total_area < 1500:
+            return 5
+        case _ if 1500 <= total_area < 2500:
+            return 10
+        case _ if 2500 <= total_area < 10000:
+            return 15
+        case _ if 10000 <= total_area < 50000:
+            return 17
+        case _:
+            return 18
 
 # ----------------------- Calculation Functions -----------------------#
 
