@@ -81,12 +81,16 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
             density_factor = zone["density_factor"]
             density_type = zone["density_type"].lower()
 
-            if density_type == "commercial":
-                commercial_area += zone_area
-                commercial_density_sum += zone_area * density_factor
-            elif density_type == "residential":
-                residential_area += zone_area
-                residential_density_sum += zone_area * density_factor
+            match density_type:
+                case "commercial":
+                    commercial_area += zone_area
+                    commercial_density_sum += zone_area * density_factor
+                case "residential":
+                    residential_area += zone_area
+                    residential_density_sum += zone_area * density_factor
+                case _:
+                    # Handle unrecognized density types if necessary
+                    pass
 
             buildable_area = (zone_area * density_factor) / 100
             plot["zone_buildable_areas"].append(round(buildable_area))
