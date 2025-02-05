@@ -1,8 +1,7 @@
 import streamlit as st
 
-from Calculations import calculate_net_land_area, green_area_formula, calculate_totals
+from Calculations import calculate_net_land_area, green_area_formula, calculate_totals, calculate_coverage_area, calculate_max_floors, calculate_extra_floors_cost
 from reports import generate_excel_report, generate_pdf_report
-
 
 # Streamlit UI
 st.sidebar.image("logo.png", width=75)
@@ -56,6 +55,55 @@ for i in range(num_plots):
 
         if not is_parceled:
             road_deduction_percent = st.slider(f"Plot {i + 1} Road Deduction (%)", min_value=0, max_value=50, value=10, step=1, key=f"road_{i}")
+
+        coverage_percent = st.slider(
+            f"Plot {i + 1} Coverage (%)",
+            min_value=0,
+            max_value=100,
+            value=50,  # default or adjust as needed
+            step=1,
+            key=f"coverage_{i}"
+        )
+
+        max_height = st.number_input(
+            f"Plot {i + 1} Max Building Height (m)",
+            min_value=0.0,
+            value=15.0,
+            step=1.0,
+            key=f"max_height_{i}"
+        )
+
+        floor_height = st.number_input(
+            f"Plot {i + 1} Floor Height (m)",
+            min_value=0.0,
+            value=3.0,
+            step=0.5,
+            key=f"floor_height_{i}"
+        )
+
+        allow_extra_floors = st.checkbox(
+            f"Allow Extra Floors for Plot {i + 1}?",
+            value=False,
+            key=f"allow_extra_floors_{i}"
+        )
+
+        extra_floors = 0
+        cost_per_extra_floor = 0.0
+        if allow_extra_floors:
+            extra_floors = st.number_input(
+                f"Number of Extra Floors (Plot {i + 1})",
+                min_value=0,
+                value=1,
+                step=1,
+                key=f"extra_floors_{i}"
+            )
+            cost_per_extra_floor = st.number_input(
+                f"Cost per Extra Floor (Plot {i + 1}, €)",
+                min_value=0.0,
+                value=25000.0,
+                step=1000.0,
+                key=f"cost_per_extra_floor_{i}"
+            )
 
         num_zones = st.number_input(f"Number of Zones", min_value=1, max_value=3, value=1, step=1, key=f"zones_{i}")
         zones = []
@@ -170,3 +218,21 @@ if "calculated" in st.session_state and st.session_state["calculated"]:
                     f"**Zone {j + 1}:** {zone['percentage']}% | Density Factor: {zone['density_factor']}% | " +
                     f"Type: {zone['density_type']} | Buildable Area: {zone_buildable_area:,} m²"
                 )
+# Coverage & floor info (if your function adds them to the dictionary):
+        if "coverage_area" in plot:
+            st.markdown(f"**Coverage Area:** {plot['coverage_area']:,} m²")
+        if "max_floors" in plot:
+            st.markdown(f"**Floors Allowed:** {plot['max_floors']}")
+        if "extra_floors_cost" in plot:
+            st.markdown(f"**Extra Floors Cost:** €{plot['extra_floors_cost']:,}")
+        if "max_buildable_area" in plot:
+            st.markdown(f"**Max Buildable Area (Coverage × Floors):** {plot['max_buildable_area']:,} m²")
+
+        for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
+            zone = plot["zones"][j]
+            st.markdown(
+                f"**Zone {j + 1}:** {zone['percentage']}% | "
+                f"Density Factor: {zone['density_factor']}% | "
+                f"Type: {zone['density_type']} | "
+                f"Buildable Area: {zone_buildable_area:,} m²"
+            )

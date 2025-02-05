@@ -6,17 +6,17 @@ def calculate_net_land_area(plot_size, is_parceled, road_deduction_percent, gree
         # If parceled, no road or green deductions apply
         return plot_size, 0, 0
 
-        # Calculate road deduction
-        road_deduction = plot_size * (road_deduction_percent / 100)
-        area_after_road = plot_size - road_deduction
+     # Calculate road deduction
+    road_deduction = plot_size * (road_deduction_percent / 100)
+    area_after_road = plot_size - road_deduction
 
-        # Calculate green deduction on the area remaining after road deduction
-        green_deduction = area_after_road * (green_percentage / 100)
+    # Calculate green deduction on the area remaining after road deduction
+    green_deduction = area_after_road * (green_percentage / 100)
 
-        # Calculate net area
-        net_area = area_after_road - green_deduction
+    # Calculate net area
+    net_area = area_after_road - green_deduction
 
-        return round(net_area), round(road_deduction), round(green_deduction)
+    return round(net_area), round(road_deduction), round(green_deduction)
 
 # Green area deduction based on total combined plot size
 def green_area_formula(total_area):
@@ -36,6 +36,24 @@ def green_area_formula(total_area):
 
 # ----------------------- Calculation Functions -----------------------#
 
+#Function to calculate coverage area#
+def calculate_coverage_area(net_plot_size: float, coverage_percent: float) -> float:
+    if coverage_percent < 0 or coverage_percent > 100:
+        raise ValueError("Coverage percent must be between 0 and 100.")
+    return net_plot_size * (coverage_percent / 100)
+
+#Function to calculate max floors#
+def calculate_max_floors(max_height: float, floor_height: float) -> int:
+        if floor_height <= 0:
+            raise ValueError("Floor height must be > 0.")
+        return int(max_height // floor_height)
+
+#Function to calculate extra floor cost#
+def calculate_extra_floors_cost(extra_floors: int, cost_per_extra_floor: float) -> float:
+    if extra_floors < 0:
+        raise ValueError("Extra floors must be >= 0.")
+    return extra_floors * cost_per_extra_floor
+
 # Function to calculate totals and handle green area allocation
 def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations):
     total_net_area = 0
@@ -46,35 +64,86 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
     commercial_density_sum = 0
     residential_density_sum = 0
 
+    # ─────────────────────────────────────────────────────────
+    # Optional: Track coverage & floors across all plots
+    # ─────────────────────────────────────────────────────────
+    total_coverage_area = 0
+    total_max_floors = 0
+    total_extra_floors_cost = 0
+
     for plot in plots:
+        # ─────────────────────────────────────────────────────
+        # Existing logic: handle road/green deductions or parcels
+        # ─────────────────────────────────────────────────────
         if plot["is_parceled"]:
-            # For parceled plots, no deductions apply
             plot["net_plot_size"] = plot["plot_size"]
             plot["road_deduction"] = 0
             plot["green_deduction"] = 0
         else:
-            # Calculate road deduction
             road_deduction = plot["plot_size"] * (plot["road_deduction_percent"] / 100)
             area_after_road = plot["plot_size"] - road_deduction
 
-            # Recalculate green percentage based on area after road deduction
             green_percentage = green_area_formula(area_after_road)
             green_deduction = area_after_road * (green_percentage / 100)
 
-            # Calculate net area
             net_plot_size = area_after_road - green_deduction
 
-            # Update plot values
             plot["net_plot_size"] = net_plot_size
             plot["road_deduction"] = road_deduction
             plot["green_deduction"] = green_deduction
 
-            # Update totals
             total_net_area += net_plot_size
             total_road_deduction += road_deduction
             total_green_deduction += green_deduction
 
-        # Calculate buildable area by zones
+        # ─────────────────────────────────────────────────────
+        # 1) Calculate coverage area (if coverage_percent exists)
+        # ─────────────────────────────────────────────────────
+        coverage_percent = plot.get("coverage_percent", 0)
+        coverage_area = plot["net_plot_size"] * (coverage_percent / 100)
+        plot["coverage_area"] = coverage_area
+        total_coverage_area += coverage_area  # Summation if needed
+
+        # ─────────────────────────────────────────────────────
+        # 2) Determine how many floors are possible
+        # ─────────────────────────────────────────────────────
+        max_height = plot.get("max_height", 0)
+        floor_height = plot.get("floor_height", 0)
+        if floor_height > 0:
+            base_floors = int(max_height // floor_height)
+        else:
+            base_floors = 0  # If no valid floor height, no floors
+
+        # ─────────────────────────────────────────────────────
+        # 3) Handle extra floors logic (if toggled on this plot)
+        # ─────────────────────────────────────────────────────
+        allow_extra_floors = plot.get("allow_extra_floors", False)
+        extra_floors = plot.get("extra_floors", 0)
+        cost_per_extra_floor = plot.get("cost_per_extra_floor", 0.0)
+
+        if allow_extra_floors and extra_floors > 0:
+            total_floors = base_floors + extra_floors
+            extra_floors_cost = extra_floors * cost_per_extra_floor
+        else:
+            total_floors = base_floors
+            extra_floors_cost = 0.0
+
+        plot["max_floors"] = total_floors
+        plot["extra_floors_cost"] = extra_floors_cost
+
+        total_max_floors += total_floors
+        total_extra_floors_cost += extra_floors_cost
+
+        # ─────────────────────────────────────────────────────
+        # 4) Incorporate coverage area with floors if needed
+        # ─────────────────────────────────────────────────────
+        # "max_buildable_area" depends on coverage and total floors
+        max_buildable_area = coverage_area * total_floors
+        plot["max_buildable_area"] = max_buildable_area
+
+        # ─────────────────────────────────────────────────────
+        # Continue your existing zone-based buildable area logic
+        # ─────────────────────────────────────────────────────
         plot["zone_buildable_areas"] = []
         for zone in plot["zones"]:
             zone_area = plot["net_plot_size"] * (zone["percentage"] / 100)
@@ -89,12 +158,14 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
                     residential_area += zone_area
                     residential_density_sum += zone_area * density_factor
                 case _:
-                    # Handle unrecognized density types if necessary
-                    pass
+                    pass  # Handle unrecognized density types
 
             buildable_area = (zone_area * density_factor) / 100
             plot["zone_buildable_areas"].append(round(buildable_area))
 
+    # ─────────────────────────────────────────────────────────
+    # Calculate averages & buildable areas for commercials/residential
+    # ─────────────────────────────────────────────────────────
     commercial_density_avg = (commercial_density_sum / commercial_area) if commercial_area else 0
     residential_density_avg = (residential_density_sum / residential_area) if residential_area else 0
 
@@ -107,6 +178,9 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
 
     total_buildable_area = commercial_buildable_area + residential_buildable_area + incentive_area
 
+    # ─────────────────────────────────────────────────────────
+    # Return dictionary including coverage & floors if needed
+    # ─────────────────────────────────────────────────────────
     return {
         "total_net_area": round(total_net_area),
         "total_road_deduction": round(total_road_deduction),
@@ -117,5 +191,9 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
         "residential_buildable_area": round(residential_buildable_area),
         "incentive_area": round(incentive_area),
         "total_buildable_area": round(total_buildable_area),
+        # Coverage & floor-related totals
+        "total_coverage_area": round(total_coverage_area),
+        "total_max_floors": total_max_floors,
+        "total_extra_floors_cost": round(total_extra_floors_cost),
         "plots": plots
     }
