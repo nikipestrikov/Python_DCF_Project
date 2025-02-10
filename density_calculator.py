@@ -1,6 +1,6 @@
 import streamlit as st
 
-from Calculations import calculate_net_land_area, green_area_formula, calculate_totals, calculate_coverage_area, calculate_max_floors, calculate_extra_floors_cost
+from Calculations import green_area_formula, calculate_totals
 from reports import generate_excel_report, generate_pdf_report
 
 # Streamlit UI

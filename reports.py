@@ -21,6 +21,11 @@ def generate_pdf_report(results, total_price, price_per_m2, project_name):
     pdf.cell(0, 10, f"Project: {project_name}", ln=True, align="C")
     pdf.ln(10)
 
+    # Add Total Price
+    pdf.set_font("Arial", style="B", size=12)
+    pdf.cell(0, 10, f"Total Project Price: EUR {total_price:,.2f}", ln=True, align="C")  # Adding project price
+    pdf.ln(10)
+
     # Summary Section
     pdf.set_font("Arial", style="B", size=14)
     pdf.cell(0, 10, "Summary", ln=True)
@@ -54,19 +59,47 @@ def generate_pdf_report(results, total_price, price_per_m2, project_name):
 
     # Populate Table with Data
     pdf.set_font("Arial", size=10)  # Match font size to headers
+    total_plot_size = 0
+    total_road_deduction = 0
+    total_green_deduction = 0
+    total_net_land_area = 0
+
     for i, plot in enumerate(results["plots"]):
+        plot_size = round(plot['plot_size'])
+        road_deduction = round(plot['road_deduction'])
+        green_deduction = round(plot['green_deduction'])
+        net_land_area = round(plot['net_plot_size'])
+
         row = [
             f"Plot {i + 1}",
-            f"{round(plot['plot_size']):,}",
-            f"{round(plot['road_deduction']):,}",
-            f"{round(plot['green_deduction']):,}",
-            f"{round(plot['net_plot_size']):,}",
+            f"{plot_size:,}",
+            f"{road_deduction:,}",
+            f"{green_deduction:,}",
+            f"{net_land_area:,}",
         ]
+        total_plot_size += plot_size
+        total_road_deduction += road_deduction
+        total_green_deduction += green_deduction
+        total_net_land_area += net_land_area
+
         for data, width in zip(row, col_widths):
             pdf.cell(width, 10, data, border=1, align="C")
         pdf.ln()
 
-    pdf.ln(10)
+        # Add a Total Row
+        pdf.set_font("Arial", style="B", size=10)  # Bold font for the total row
+        total_row = [
+            "Total",
+            f"{total_plot_size:,}",
+            f"{total_road_deduction:,}",
+            f"{total_green_deduction:,}",
+            f"{total_net_land_area:,}",
+        ]
+        for data, width in zip(total_row, col_widths):
+            pdf.cell(width, 10, data, border=1, align="C")
+        pdf.ln()
+
+        pdf.ln(10)
 
     # Save PDF to a temporary file
     temp_file = "/tmp/report.pdf"
