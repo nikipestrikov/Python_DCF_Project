@@ -36,24 +36,6 @@ def green_area_formula(total_area):
 
 # ----------------------- Calculation Functions -----------------------#
 
-#Function to calculate coverage area#
-def calculate_coverage_area(net_plot_size: float, coverage_percent: float) -> float:
-    if coverage_percent < 0 or coverage_percent > 100:
-        raise ValueError("Coverage percent must be between 0 and 100.")
-    return net_plot_size * (coverage_percent / 100)
-
-#Function to calculate max floors#
-def calculate_max_floors(max_height: float, floor_height: float) -> int:
-        if floor_height <= 0:
-            raise ValueError("Floor height must be > 0.")
-        return int(max_height // floor_height)
-
-#Function to calculate extra floor cost#
-def calculate_extra_floors_cost(extra_floors: int, cost_per_extra_floor: float) -> float:
-    if extra_floors < 0:
-        raise ValueError("Extra floors must be >= 0.")
-    return extra_floors * cost_per_extra_floor
-
 # Function to calculate totals and handle green area allocation
 def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method, custom_green_allocations):
     total_net_area = 0
@@ -197,3 +179,21 @@ def calculate_totals(plots, apply_efficiency_incentive, green_allocation_method,
         "total_extra_floors_cost": round(total_extra_floors_cost),
         "plots": plots
     }
+
+#Function to calculate coverage area#
+def calculate_coverage_area(net_plot_size: float, coverage_percent: float) -> float:
+    if coverage_percent < 0 or coverage_percent > 100:
+        raise ValueError("Coverage percent must be between 0 and 100.")
+    return net_plot_size * (coverage_percent / 100)
+
+#Function to calculate max floors#
+def calculate_max_floors(max_height: float, floor_height: float) -> int:
+        if floor_height <= 0:
+            raise ValueError("Floor height must be > 0.")
+        return int(max_height // floor_height)
+
+#Function to calculate extra floor cost#
+def calculate_extra_floors_cost(extra_floors: int, cost_per_extra_floor: float) -> float:
+    if extra_floors < 0:
+        raise ValueError("Extra floors must be >= 0.")
+    return extra_floors * cost_per_extra_floor

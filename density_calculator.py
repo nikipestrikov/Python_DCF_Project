@@ -119,7 +119,8 @@ for i in range(num_plots):
         plot_price = st.number_input(f"Price for Plot {i + 1}", min_value=0, step=1, format="%d", key=f"price_{i}") if price_toggle == "Each Plot" else 0
         total_price += plot_price
 
-        plots.append({"serial_number": serial_number, "plot_size": plot_size, "is_parceled": is_parceled, "road_deduction_percent": road_deduction_percent, "zones": zones})
+        plots.append({"serial_number": serial_number, "plot_size": plot_size, "is_parceled": is_parceled, "road_deduction_percent": road_deduction_percent, "zones": zones, "coverage_percent": coverage_percent
+})
 
 if green_allocation_method == "Custom":
     st.sidebar.header("Custom Green Area Allocation")
@@ -181,7 +182,12 @@ if "calculated" in st.session_state and st.session_state["calculated"]:
         f"</details></div>",
         unsafe_allow_html=True
     )
-
+    st.markdown(
+        f"<div style='background-color:#7688f1;padding:10px;border-radius:5px;margin-bottom:10px;'>" +
+        f"<b>Coverage Area:</b> {results['total_coverage_area']:,} m² "
+        f"</details></div>",
+        unsafe_allow_html=True
+    )
     # Excel Export
     excel_data = generate_excel_report(results, total_price, price_per_m2)
     st.download_button(
