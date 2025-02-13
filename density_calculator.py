@@ -184,7 +184,9 @@ if "calculated" in st.session_state and st.session_state["calculated"]:
     )
     st.markdown(
         f"<div style='background-color:#7688f1;padding:10px;border-radius:5px;margin-bottom:10px;'>" +
-        f"<b>Coverage Area:</b> {results['total_coverage_area']:,} m² "
+        f"<b>Coverage Area:</b> {results['total_coverage_area']:,} m² " +
+        f"<details><summary>Click to expand</summary>" +
+        f"Floor Allowance: {results['total_road_deduction']:,} m²<br>" +
         f"</details></div>",
         unsafe_allow_html=True
     )
@@ -224,15 +226,6 @@ if "calculated" in st.session_state and st.session_state["calculated"]:
                     f"**Zone {j + 1}:** {zone['percentage']}% | Density Factor: {zone['density_factor']}% | " +
                     f"Type: {zone['density_type']} | Buildable Area: {zone_buildable_area:,} m²"
                 )
-# Coverage & floor info (if your function adds them to the dictionary):
-        if "coverage_area" in plot:
-            st.markdown(f"**Coverage Area:** {plot['coverage_area']:,} m²")
-        if "max_floors" in plot:
-            st.markdown(f"**Floors Allowed:** {plot['max_floors']}")
-        if "extra_floors_cost" in plot:
-            st.markdown(f"**Extra Floors Cost:** €{plot['extra_floors_cost']:,}")
-        if "max_buildable_area" in plot:
-            st.markdown(f"**Max Buildable Area (Coverage × Floors):** {plot['max_buildable_area']:,} m²")
 
         for j, zone_buildable_area in enumerate(plot["zone_buildable_areas"]):
             zone = plot["zones"][j]
