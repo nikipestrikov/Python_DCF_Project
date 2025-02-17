@@ -1,6 +1,8 @@
 from fpdf import FPDF
 from io import BytesIO
 import pandas as pd
+import tempfile
+import os
 
 # ----------------------- PDF Report Generator -----------------------#
 def generate_pdf_report(results, total_price, price_per_m2, project_name):
@@ -101,8 +103,9 @@ def generate_pdf_report(results, total_price, price_per_m2, project_name):
 
         pdf.ln(10)
 
-    # Save PDF to a temporary file
-    temp_file = "/tmp/report.pdf"
+    # Save PDF to a temporary file in a cross-platform way
+    temp_dir = tempfile.gettempdir()
+    temp_file = os.path.join(temp_dir, 'report.pdf')
     pdf.output(temp_file)
 
     # Read the file into a BytesIO object
